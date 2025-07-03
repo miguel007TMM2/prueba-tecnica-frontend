@@ -46,6 +46,43 @@ export default function Tiptap() {
     immediatelyRender: false,
   });
 
+  async function sendPendingNotes(token: string, refreshNotes: () => void) {
+    const pending: { title: string; content: string }[] = JSON.parse(
+      localStorage.getItem("pendingNotes") || "[]"
+    );
+
+    if (pending.length === 0) return;
+
+    let sent = 0;
+
+    for (const note of pending) {
+      try {
+        const res = await fetch("http://localhost:3800/api/nota", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+          body: JSON.stringify(note),
+        });
+        if (res.ok) sent++;
+      } catch {
+        break;
+      }
+    }
+    if (sent > 0) {
+      localStorage.removeItem("pendingNotes");
+      refreshNotes();
+      alert(`${sent} nota(s) sincronizadas con el servidor.`);
+    }
+  }
+
+  function savePendingNote(note: { title: string; content: string }) {
+    const pending = JSON.parse(localStorage.getItem("pendingNotes") || "[]");
+    pending.push(note);
+    localStorage.setItem("pendingNotes", JSON.stringify(pending));
+  }
+
   function getToken() {
     const cookieValue = getCookie("token");
     let token = "";
@@ -60,21 +97,38 @@ export default function Tiptap() {
     return token;
   }
 
-  useEffect(() => {
-    async function fetchNotes() {
-      const token = getToken();
-      const res = await fetch("http://localhost:3800/api/notas", {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : "",
-        },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setNotes(data);
-      }
+  async function fetchNotes() {
+    const token = getToken();
+    const res = await fetch("http://localhost:3800/api/notas", {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: token ? `Bearer ${token}` : "",
+      },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setNotes(data);
     }
+  }
+
+  useEffect(() => {
     fetchNotes();
+
+    const syncOnReconnect = () => {
+      const token = getToken();
+      sendPendingNotes(token, fetchNotes);
+    };
+    window.addEventListener("online", syncOnReconnect);
+
+    if (navigator.onLine) {
+      const token = getToken();
+      sendPendingNotes(token, fetchNotes);
+    }
+
+    return () => {
+      window.removeEventListener("online", syncOnReconnect);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function handleSelectNote(note: Note) {
@@ -92,42 +146,68 @@ export default function Tiptap() {
   async function handleSave() {
     setLoading(true);
     setMessage("");
+    const noteData = { title, content: editorContent };
+    if (!navigator.onLine) {
+      savePendingNote(noteData);
+      setNotes((prev) => [
+        ...prev,
+        { id: Date.now(), title, content: editorContent },
+      ]);
+      setMessage(
+        "Sin conexión. Nota guardada localmente y se enviará cuando haya internet."
+      );
+      setTitle("");
+      editor?.commands.setContent("");
+      setSelectedNoteId(null);
+      setLoading(false);
+      return;
+    }
     try {
       const token = getToken();
-
       const res = await fetch("http://localhost:3800/api/nota", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: token ? `Bearer ${token}` : "",
         },
-        body: JSON.stringify({
-          title,
-          content: editorContent,
-        }),
+        body: JSON.stringify(noteData),
       });
       if (!res.ok) throw new Error("Error al guardar la nota");
       setMessage("Nota guardada correctamente");
- 
+
       setTitle("");
       editor?.commands.setContent("");
       setSelectedNoteId(null);
- 
-      const notesRes = await fetch("http://localhost:3800/api/notas", {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : "",
-        },
-      });
-      if (notesRes.ok) {
-        const data = await notesRes.json();
-        setNotes(data);
-      }
+
+      await fetchNotes();
     } catch (err) {
-      setMessage("Error al guardar la nota");
-      console.error("Error al guardar la nota:", err);
+      savePendingNote(noteData);
+      setMessage(
+        "Sin conexión. Nota guardada localmente y se enviará cuando haya internet."
+      );
+      setTitle("");
+      editor?.commands.setContent("");
+      setSelectedNoteId(null);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleDeleteNote(id: number) {
+    const token = getToken();
+    const res = await fetch(`http://localhost:3800/api/nota/${id}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: token ? `Bearer ${token}` : "",
+      },
+    });
+    if (res.ok) {
+      setNotes((prev) => prev.filter((note) => note.id !== id));
+      setMessage("Nota eliminada correctamente");
+      setSelectedNoteId(null);
+    } else {
+      setMessage("No se pudo eliminar la nota");
     }
   }
 
@@ -149,11 +229,21 @@ export default function Tiptap() {
           {notes.map((note) => (
             <div
               key={note.id}
-              className={`border rounded p-2 cursor-pointer w-60 ${
+              className={`border rounded p-2 cursor-pointer w-60 relative ${
                 selectedNoteId === note.id ? "bg-blue-100" : "bg-white"
               }`}
               onClick={() => handleSelectNote(note)}
             >
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteNote(note.id);
+                }}
+                className="absolute top-1 right-1 text-xs bg-red-500 text-white rounded px-2 py-1"
+                title="Eliminar nota"
+              >
+                Delete
+              </button>
               <h3 className="font-semibold truncate">{note.title}</h3>
               <div
                 className="text-xs text-gray-500 truncate"
