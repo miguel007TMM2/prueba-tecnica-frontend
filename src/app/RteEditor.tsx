@@ -83,7 +83,6 @@ export default function Tiptap() {
     editor?.commands.setContent(note.content);
   }
 
-  // Nueva función para limpiar el editor y los campos
   function handleNewNote() {
     setSelectedNoteId(null);
     setTitle("");
@@ -109,11 +108,11 @@ export default function Tiptap() {
       });
       if (!res.ok) throw new Error("Error al guardar la nota");
       setMessage("Nota guardada correctamente");
-      // Limpiar editor y campos después de guardar
+ 
       setTitle("");
       editor?.commands.setContent("");
       setSelectedNoteId(null);
-      // Opcional: recargar las notas
+ 
       const notesRes = await fetch("http://localhost:3800/api/notas", {
         headers: {
           "Content-Type": "application/json",
@@ -138,7 +137,6 @@ export default function Tiptap() {
 
   return (
     <>
-      {/* Lista de notas */}
       <div className="mb-4">
         <h2 className="font-bold mb-2">Mis notas</h2>
         <button
