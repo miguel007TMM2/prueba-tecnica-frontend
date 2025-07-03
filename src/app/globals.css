@@ -12,7 +12,7 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
+@media (prefers-color-scheme: light) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
@@ -23,4 +23,66 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.controls {
+  display: flex;
+  border: 1px solid #ccc;
+  border-top: 0;
+  padding: 10px;
+}
+
+.controls-right {
+  margin-left: auto;
+}
+
+.state {
+  margin: 10px 0;
+  font-family: monospace;
+}
+
+.state-title {
+  color: #999;
+  text-transform: uppercase;
+}
+
+h1 {
+  font-size: 2rem;
+  font-weight: 700;
+}
+h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+h3 {
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+h4 {
+  font-size: 1rem;
+  font-weight: 400;
+}
+h5 {
+  font-size: 0.875rem;
+  font-weight: 300;
+}
+h6 {
+  font-size: 0.75rem;
+  font-weight: 200;
+}
+ul {
+  list-style-type: disc;
+  margin-left: 1.5rem;
+}
+
+ul li {
+  margin-bottom: 0.5rem;
+}
+ol {
+  list-style-type: decimal;
+  margin-left: 1.5rem;
+}
+
+ol li {
+  margin-bottom: 0.5rem;
 }
