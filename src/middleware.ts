@@ -10,21 +10,15 @@ export function middleware(request: NextRequest) {
   const response = NextResponse.next();
 
   if (tokenCookie) {
-    try {
-      const parsedCookie = JSON.parse(tokenCookie.value);
-      const isExpired = new Date(parsedCookie.expiresAt) < new Date();
+    const parsedCookie = JSON.parse(tokenCookie.value);
+    const isExpired = new Date(parsedCookie.expires) < new Date();
 
-      if (isExpired && request.cookies.has("token")) {
-        response.cookies.delete("token");
-        return NextResponse.redirect(new URL("/login", request.url));
-      }
-
-      return response;
-    } catch (error) {
-      console.error("Error parsing token cookie:", error);
+    if (isExpired && request.cookies.has("token")) {
       response.cookies.delete("token");
       return NextResponse.redirect(new URL("/login", request.url));
     }
+
+    return response;
   }
 
   if (!tokenCookie && AUTH_ROUTE.includes(currentPath)) {
@@ -33,7 +27,3 @@ export function middleware(request: NextRequest) {
 
   return response;
 }
-
-export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
-};
