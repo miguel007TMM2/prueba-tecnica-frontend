@@ -3,6 +3,7 @@
 import { JSX, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiRequest } from "@/api";
+import Link from "next/link";
 interface Form extends Record<string, unknown> {
   username?: string;
   email: string;
@@ -129,6 +130,14 @@ export function RegisterComponent(): JSX.Element {
           {loading ? "Loading..." : "Sign up"}
         </button>
       </form>
+      <div className="mt-5 text-center">
+        <p className="text-sm text-gray-600">
+          Already have an account?{" "}
+          <Link href="/login" className="font-semibold text-indigo-600">
+            Sign in
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }

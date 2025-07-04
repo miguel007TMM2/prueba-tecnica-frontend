@@ -4,6 +4,7 @@ import { JSX, useState } from "react";
 import { setCookie } from "cookies-next";
 import { useRouter } from "next/navigation";
 import { apiRequest } from "@/api";
+import Link from "next/link";
 interface Form extends Record<string, unknown> {
   email: string;
   password: string;
@@ -108,6 +109,14 @@ export function LoginComponent(): JSX.Element {
          {loading ? "Loading..." : "Sign in"}
         </button>
       </form>
+      <div className="mt-5 text-center">
+        <p className="text-sm text-gray-600">
+          Don t have an account?{" "}
+          <Link href="/register" className="font-semibold text-indigo-600">
+            Sign up
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }
