@@ -3,7 +3,7 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import { JSX, useEffect, useState } from "react";
-import { getToken, savePendingNote, sendPendingNotes } from "@/utils";
+import { deletePendingNote, getToken, savePendingNoteWithId, sendPendingNotes } from "@/utils";
 import { apiRequest } from "@/api";
 import { NoteViewer } from "@/components/note-viewer";
 import { Note, TiptapProps } from "@/types";
@@ -57,15 +57,28 @@ export default function Tiptap(): JSX.Element | null {
   useEffect(() => {
     fetchNotes();
 
-    const syncOnReconnect = () => {
+    const syncOnReconnect = async () => {
       const token = getToken();
+      const toDelete = JSON.parse(localStorage.getItem("pendingDeleteNotes") || "[]");
+      for (const id of toDelete) {
+        try {
+          await apiRequest({
+            method: "DELETE",
+            endpoint: `/nota/${id}`,
+            token,
+          });
+        } catch {}
+      }
+      if (toDelete.length > 0) {
+        localStorage.removeItem("pendingDeleteNotes");
+        await fetchNotes();
+      }
       sendPendingNotes(token, fetchNotes);
     };
     window.addEventListener("online", syncOnReconnect);
 
     if (navigator.onLine) {
-      const token = getToken();
-      sendPendingNotes(token, fetchNotes);
+      syncOnReconnect();
     }
 
     return () => {
@@ -106,7 +119,7 @@ export default function Tiptap(): JSX.Element | null {
     const noteData = { title, content: editorContent };
 
     if (!navigator.onLine) {
-      savePendingNote(noteData);
+      const noteWithId = savePendingNoteWithId(noteData);
       setTiptap((prev) => ({
         ...prev,
         loading: false,
@@ -114,10 +127,7 @@ export default function Tiptap(): JSX.Element | null {
         title: "",
         message:
           "Sin conexión. Nota guardada localmente y se enviará cuando haya internet.",
-        notes: [
-          ...prev.notes,
-          { id: Date.now(), title, content: editorContent },
-        ],
+        notes: [...prev.notes, noteWithId],
         editorContent: "",
       }));
       return;
@@ -140,7 +150,7 @@ export default function Tiptap(): JSX.Element | null {
       }));
       await fetchNotes();
     } catch (err) {
-      savePendingNote(noteData);
+      const noteWithId = savePendingNoteWithId(noteData);
       editor?.commands.setContent("");
       setTiptap((prev) => ({
         ...prev,
@@ -148,6 +158,7 @@ export default function Tiptap(): JSX.Element | null {
           "Sin conexión. Nota guardada localmente y se enviará cuando haya internet.",
         title: "",
         selectedNoteId: null,
+        notes: [...prev.notes, noteWithId],
       }));
       console.error("Error al guardar la nota:", err);
     } finally {
@@ -156,25 +167,53 @@ export default function Tiptap(): JSX.Element | null {
   }
 
   async function handleDeleteNote(id: number): Promise<void> {
-    const token = getToken();
-    try {
-      await apiRequest({
-        method: "DELETE",
-        endpoint: `/nota/${id}`,
-        token,
-      });
+    const isLocal = tiptap.notes.some(
+      (note) => note.id === id && String(note.id).length >= 13
+    );
+
+    if (isLocal) {
+      deletePendingNote(id);
       setTiptap((prev) => ({
         ...prev,
         notes: prev.notes.filter((note) => note.id !== id),
-        message: "Nota eliminada correctamente",
+        message: "Nota local eliminada",
         selectedNoteId: null,
       }));
-    } catch {
-      setTiptap((prev) => ({
-        ...prev,
-        message: "No se pudo eliminar la nota",
-      }));
+      return;
     }
+
+    if (navigator.onLine) {
+      const token = getToken();
+      try {
+        await apiRequest({
+          method: "DELETE",
+          endpoint: `/nota/${id}`,
+          token,
+        });
+        setTiptap((prev) => ({
+          ...prev,
+          notes: prev.notes.filter((note) => note.id !== id),
+          message: "Nota eliminada correctamente",
+          selectedNoteId: null,
+        }));
+      } catch {
+        setTiptap((prev) => ({
+          ...prev,
+          message: "No se pudo eliminar la nota",
+        }));
+      }
+      return;
+    }
+
+    const toDelete = JSON.parse(localStorage.getItem("pendingDeleteNotes") || "[]");
+    toDelete.push(id);
+    localStorage.setItem("pendingDeleteNotes", JSON.stringify(toDelete));
+    setTiptap((prev) => ({
+      ...prev,
+      notes: prev.notes.filter((note) => note.id !== id),
+      message: "Nota marcada para eliminar cuando haya conexión",
+      selectedNoteId: null,
+    }));
   }
 
   if (!editor) {

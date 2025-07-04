@@ -33,12 +33,6 @@ export async function sendPendingNotes(
   }
 }
 
-export function savePendingNote(note: { title: string; content: string }): void {
-  const pending = JSON.parse(localStorage.getItem("pendingNotes") || "[]");
-  pending.push(note);
-  localStorage.setItem("pendingNotes", JSON.stringify(pending));
-}
-
  export function getToken(): string {
     const cookieValue = getCookie("token");
     let token: string = "";
@@ -51,4 +45,18 @@ export function savePendingNote(note: { title: string; content: string }): void 
       }
     }
     return token;
+  }
+
+ export  function deletePendingNote(id: number) {
+    const pending = JSON.parse(localStorage.getItem("pendingNotes") || "[]");
+    const newPending = pending.filter((note: { id: number }) => note.id !== id);
+    localStorage.setItem("pendingNotes", JSON.stringify(newPending));
+  }
+  
+ export function savePendingNoteWithId(note: { title: string; content: string }) {
+    const pending = JSON.parse(localStorage.getItem("pendingNotes") || "[]");
+    const noteWithId = { ...note, id: Date.now() };
+    pending.push(noteWithId);
+    localStorage.setItem("pendingNotes", JSON.stringify(pending));
+    return noteWithId;
   }
