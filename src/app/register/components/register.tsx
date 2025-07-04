@@ -1,39 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { JSX, useState } from "react";
 import { useRouter } from "next/navigation";
-
+import { contentType, method, Options } from "@/types";
 interface Form {
   username?: string;
   email: string;
   password: string;
 }
 
-enum method {
-  GET = "GET",
-  POST = "POST",
-  PUTH = "PUTH",
-  DELETE = "DELETE",
-}
-
-enum contentType {
-  ApplicationJson = "application/json",
-}
-
-interface Options {
-  method: method;
-  headers: {
-    "Content-Type": contentType;
-  };
-  body: string;
-}
-
-export function RegisterComponent() {
+export function RegisterComponent(): JSX.Element {
   const [formData, setFormData] = useState<Form>({
     email: "",
     password: "",
     username: "",
   });
+
+  const [loading, setLoading] = useState<boolean>(false);
 
   const router = useRouter();
 
@@ -45,7 +28,8 @@ export function RegisterComponent() {
     }));
   }
 
-  function handleSubmit() {
+  async function handleSubmit(): Promise<void> {
+    setLoading(true);
     const options: Options = {
       method: method.POST,
       headers: {
@@ -54,14 +38,20 @@ export function RegisterComponent() {
       body: JSON.stringify(formData),
     };
 
-    fetch("https://ucw4k4kk0coss4k08k0ow4ko.softver.cc/api/register", options)
-      .then((res) => res.json())
-      .then((data) => {
-        alert(data.message);
-        router.push("/login");
-        console.log(data.message);
-      })
-      .catch((err) => console.log(err));
+    try {
+      const res: Response = await fetch(
+        "https://ucw4k4kk0coss4k08k0ow4ko.softver.cc/api/register",
+        options
+      );
+      const data: { message: string } = await res.json();
+      alert(data.message);
+      router.push("/login");
+      console.log(data.message);
+    } catch (err) {
+      console.log(err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -73,12 +63,12 @@ export function RegisterComponent() {
       </div>
       <form
         className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm"
-        onSubmit={(e) => {
+        onSubmit={(e: React.FormEvent<HTMLFormElement>): void => {
           e.preventDefault();
           handleSubmit();
         }}
       >
-         <div className="space-y-6">
+        <div className="space-y-6">
           <label
             htmlFor="username"
             className="block text-sm/6 font-medium text-gray-900"
@@ -144,7 +134,7 @@ export function RegisterComponent() {
           type="submit"
           className="flex mt-5 w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
         >
-          Sign up
+          {loading ? "Loading..." : "Sign up"}
         </button>
       </form>
     </div>

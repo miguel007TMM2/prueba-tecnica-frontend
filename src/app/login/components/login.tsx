@@ -14,7 +14,7 @@ export function LoginComponent(): JSX.Element {
     email: "",
     password: "",
   });
-
+  const [loading, setLoading] = useState<boolean>(false);
   const router = useRouter();
 
   function HandleInputForm(e: React.ChangeEvent<HTMLInputElement>): void {
@@ -26,6 +26,7 @@ export function LoginComponent(): JSX.Element {
   }
 
   async function handleSubmit(): Promise<void> {
+    setLoading(true);
     const options: Options = {
       method: method.POST,
       headers: {
@@ -52,6 +53,8 @@ export function LoginComponent(): JSX.Element {
       }
     } catch (err) {
       console.log(err);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -110,7 +113,7 @@ export function LoginComponent(): JSX.Element {
           type="submit"
           className="flex mt-5 w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
         >
-          Sign in
+         {loading ? "Loading..." : "Sign in"}
         </button>
       </form>
     </div>
