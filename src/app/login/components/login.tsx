@@ -3,8 +3,8 @@
 import { JSX, useState } from "react";
 import { setCookie } from "cookies-next";
 import { useRouter } from "next/navigation";
-import { contentType, method, Options } from "@/types";
-interface Form {
+import { apiRequest } from "@/api";
+interface Form extends Record<string, unknown> {
   email: string;
   password: string;
 }
@@ -27,24 +27,16 @@ export function LoginComponent(): JSX.Element {
 
   async function handleSubmit(): Promise<void> {
     setLoading(true);
-    const options: Options = {
-      method: method.POST,
-      headers: {
-        "Content-Type": contentType.ApplicationJson,
-      },
-      body: JSON.stringify(formData),
-    };
-
     try {
-      const res: Response = await fetch(
-        "https://ucw4k4kk0coss4k08k0ow4ko.softver.cc/api/login",
-        options
-      );
       const data: {
         token?: string;
         expiresIn?: number | Date;
         message?: string;
-      } = await res.json();
+      } = await apiRequest({
+        method: "POST",
+        endpoint: "/login",
+        body: formData,
+      });
       if (data.token) {
         setCookie("token", data);
         router.push("/");

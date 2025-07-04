@@ -2,8 +2,8 @@
 
 import { JSX, useState } from "react";
 import { useRouter } from "next/navigation";
-import { contentType, method, Options } from "@/types";
-interface Form {
+import { apiRequest } from "@/api";
+interface Form extends Record<string, unknown> {
   username?: string;
   email: string;
   password: string;
@@ -28,22 +28,14 @@ export function RegisterComponent(): JSX.Element {
     }));
   }
 
-  async function handleSubmit(): Promise<void> {
+   async function handleSubmit(): Promise<void> {
     setLoading(true);
-    const options: Options = {
-      method: method.POST,
-      headers: {
-        "Content-Type": contentType.ApplicationJson,
-      },
-      body: JSON.stringify(formData),
-    };
-
     try {
-      const res: Response = await fetch(
-        "https://ucw4k4kk0coss4k08k0ow4ko.softver.cc/api/register",
-        options
-      );
-      const data: { message: string } = await res.json();
+      const data: { message: string } = await apiRequest({
+        method: "POST",
+        endpoint: "/register",
+        body: formData,
+      });
       alert(data.message);
       router.push("/login");
       console.log(data.message);

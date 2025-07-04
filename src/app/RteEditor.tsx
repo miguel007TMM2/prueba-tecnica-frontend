@@ -11,7 +11,8 @@ import {
   FaHeading,
 } from "react-icons/fa";
 import { JSX, useEffect, useState } from "react";
-import { getCookie } from "cookies-next";
+import { getToken, savePendingNote, sendPendingNotes } from "@/utils";
+import { apiRequest } from "@/api";
 
 interface Note {
   id: number;
@@ -19,7 +20,7 @@ interface Note {
   content: string;
 }
 
-type Level = 1 | 2 | 3 | 4 | 5 | 6 ;
+type Level = 1 | 2 | 3 | 4 | 5 | 6;
 interface TiptapProps {
   headingLevel: Level;
   editorContent: string;
@@ -29,7 +30,6 @@ interface TiptapProps {
   notes: Note[];
   selectedNoteId: number | null;
 }
-
 
 export default function Tiptap(): JSX.Element | null {
   const [tiptap, setTiptap] = useState<TiptapProps>({
@@ -60,74 +60,16 @@ export default function Tiptap(): JSX.Element | null {
     immediatelyRender: false,
   });
 
-  async function sendPendingNotes(token: string, refreshNotes: () => void) {
-    const pending: { title: string; content: string }[] = JSON.parse(
-      localStorage.getItem("pendingNotes") || "[]"
-    );
-
-    if (pending.length === 0) return;
-
-    let sent = 0;
-
-    for (const note of pending) {
-      try {
-        const res = await fetch(
-          "https://ucw4k4kk0coss4k08k0ow4ko.softver.cc/api/nota",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: token ? `Bearer ${token}` : "",
-            },
-            body: JSON.stringify(note),
-          }
-        );
-        if (res.ok) sent++;
-      } catch {
-        break;
-      }
-    }
-    if (sent > 0) {
-      localStorage.removeItem("pendingNotes");
-      refreshNotes();
-      alert(`${sent} nota(s) sincronizadas con el servidor.`);
-    }
-  }
-
-  function savePendingNote(note: { title: string; content: string }) {
-    const pending = JSON.parse(localStorage.getItem("pendingNotes") || "[]");
-    pending.push(note);
-    localStorage.setItem("pendingNotes", JSON.stringify(pending));
-  }
-
-  function getToken() {
-    const cookieValue = getCookie("token");
-    let token = "";
-    if (cookieValue) {
-      try {
-        const parsed = JSON.parse(cookieValue as string);
-        token = parsed.token;
-      } catch {
-        token = cookieValue as string;
-      }
-    }
-    return token;
-  }
-
-  async function fetchNotes() {
-    const token = getToken();
-    const res = await fetch(
-      "https://ucw4k4kk0coss4k08k0ow4ko.softver.cc/api/notas",
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : "",
-        },
-      }
-    );
-    if (res.ok) {
-      const data = await res.json();
+  async function fetchNotes(): Promise<void> {
+    const token: string | null = getToken();
+    try {
+      const data = await apiRequest<Note[]>({
+        endpoint: "/notas",
+        token,
+      });
       setTiptap((prev) => ({ ...prev, notes: data }));
+    } catch (err) {
+      console.error("Error al obtener las notas:", err);
     }
   }
 
@@ -151,7 +93,7 @@ export default function Tiptap(): JSX.Element | null {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function handleSelectNote(note: Note) {
+  function handleSelectNote(note: Note): void {
     setTiptap((prev) => ({
       ...prev,
       title: note.title,
@@ -171,10 +113,8 @@ export default function Tiptap(): JSX.Element | null {
     editor?.commands.setContent("");
   }
 
-  async function handleSave() {
-
+  async function handleSave(): Promise<void> {
     setTiptap((prev) => ({ ...prev, loading: true, message: "" }));
-
     const { title, editorContent } = tiptap;
     const noteData = { title, content: editorContent };
 
@@ -198,19 +138,12 @@ export default function Tiptap(): JSX.Element | null {
 
     try {
       const token = getToken();
-      const res = await fetch(
-        "https://ucw4k4kk0coss4k08k0ow4ko.softver.cc/api/nota",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: token ? `Bearer ${token}` : "",
-          },
-          body: JSON.stringify(noteData),
-        }
-      );
-      if (!res.ok) throw new Error("Error al guardar la nota");
-
+      await apiRequest({
+        method: "POST",
+        endpoint: "/nota",
+        token,
+        body: noteData,
+      });
       editor?.commands.setContent("");
       setTiptap((prev) => ({
         ...prev,
@@ -218,16 +151,16 @@ export default function Tiptap(): JSX.Element | null {
         selectedNoteId: null,
         title: "",
       }));
-
       await fetchNotes();
-    } catch (err: unknown) {
+    } catch (err) {
       savePendingNote(noteData);
       editor?.commands.setContent("");
       setTiptap((prev) => ({
         ...prev,
-       message: "Sin conexión. Nota guardada localmente y se enviará cuando haya internet.",
-       title: "",
-       selectedNoteId: null,
+        message:
+          "Sin conexión. Nota guardada localmente y se enviará cuando haya internet.",
+        title: "",
+        selectedNoteId: null,
       }));
       console.error("Error al guardar la nota:", err);
     } finally {
@@ -235,29 +168,21 @@ export default function Tiptap(): JSX.Element | null {
     }
   }
 
-  async function handleDeleteNote(id: number) {
+  async function handleDeleteNote(id: number): Promise<void> {
     const token = getToken();
-    const res = await fetch(
-      `https://ucw4k4kk0coss4k08k0ow4ko.softver.cc/api/nota/${id}`,
-      {
+    try {
+      await apiRequest({
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : "",
-        },
-      }
-    );
-    if (res.ok) {
-
+        endpoint: `/nota/${id}`,
+        token,
+      });
       setTiptap((prev) => ({
         ...prev,
+        notes: prev.notes.filter((note) => note.id !== id),
         message: "Nota eliminada correctamente",
         selectedNoteId: null,
-        title: "",
-        notes: prev.notes.filter((note) => note.id !== id),
       }));
-     
-    } else {
+    } catch {
       setTiptap((prev) => ({
         ...prev,
         message: "No se pudo eliminar la nota",
@@ -315,7 +240,9 @@ export default function Tiptap(): JSX.Element | null {
             type="text"
             placeholder="Título de la nota"
             value={tiptap.title}
-            onChange={(e) => setTiptap((prev) => ({ ...prev, title: e.target.value }))}
+            onChange={(e) =>
+              setTiptap((prev) => ({ ...prev, title: e.target.value }))
+            }
             className="border rounded p-2 mb-2 w-full"
           />
           <div className="flex space-x-2 mb-2">
@@ -326,7 +253,7 @@ export default function Tiptap(): JSX.Element | null {
               <select
                 value={tiptap.headingLevel}
                 onChange={(e) => {
-                  const headingLevel: Level =  Number(e.target.value) as Level;
+                  const headingLevel: Level = Number(e.target.value) as Level;
                   setTiptap((prev) => ({
                     ...prev,
                     headingLevel,
@@ -334,7 +261,7 @@ export default function Tiptap(): JSX.Element | null {
                   editor
                     .chain()
                     .focus()
-                    .toggleHeading({ level: headingLevel})
+                    .toggleHeading({ level: headingLevel })
                     .run();
                 }}
                 className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
@@ -390,7 +317,9 @@ export default function Tiptap(): JSX.Element | null {
           >
             {tiptap.loading ? "Guardando..." : "Saved"}
           </button>
-          {tiptap.message && <span className="ml-4 text-sm">{tiptap.message}</span>}
+          {tiptap.message && (
+            <span className="ml-4 text-sm">{tiptap.message}</span>
+          )}
         </div>
       </div>
       <div className="border rounded-lg p-2">
