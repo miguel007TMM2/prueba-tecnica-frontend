@@ -1,40 +1,21 @@
 "use client";
 
-import { useState } from "react";
-import { setCookie } from 'cookies-next';
-import { useRouter } from 'next/navigation'
-
+import { JSX, useState } from "react";
+import { setCookie } from "cookies-next";
+import { useRouter } from "next/navigation";
+import { contentType, method, Options } from "@/types";
 interface Form {
   email: string;
   password: string;
 }
 
-enum method {
-  GET = "GET",
-  POST = "POST",
-  PUTH = "PUTH",
-  DELETE = "DELETE",
-}
-
-enum contentType {
-  ApplicationJson = "application/json",
-}
-
-interface Options {
-  method: method;
-  headers: {
-    "Content-Type": contentType;
-  };
-  body: string;
-}
-
-export function LoginComponent() {
+export function LoginComponent(): JSX.Element {
   const [formData, setFormData] = useState<Form>({
     email: "",
     password: "",
   });
-  
-  const router = useRouter()
+
+  const router = useRouter();
 
   function HandleInputForm(e: React.ChangeEvent<HTMLInputElement>): void {
     const { name, value } = e.target;
@@ -44,7 +25,7 @@ export function LoginComponent() {
     }));
   }
 
-  function handleSubmit() {
+  async function handleSubmit(): Promise<void> {
     const options: Options = {
       method: method.POST,
       headers: {
@@ -53,17 +34,25 @@ export function LoginComponent() {
       body: JSON.stringify(formData),
     };
 
-    fetch("http://localhost:3800/api/login", options)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.token) {
-          setCookie("token", data);
-          router.push("/");
-        } else {
-          alert(data.message || "Credenciales incorrectas");
-        }
-      })
-      .catch((err) => console.log(err));
+    try {
+      const res: Response = await fetch(
+        "https://ucw4k4kk0coss4k08k0ow4ko.softver.cc/api/login",
+        options
+      );
+      const data: {
+        token?: string;
+        expiresIn?: number | Date;
+        message?: string;
+      } = await res.json();
+      if (data.token) {
+        setCookie("token", data);
+        router.push("/");
+      } else {
+        alert(data.message || "Credenciales incorrectas");
+      }
+    } catch (err) {
+      console.log(err);
+    }
   }
 
   return (
@@ -75,7 +64,7 @@ export function LoginComponent() {
       </div>
       <form
         className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm"
-        onSubmit={(e) => {
+        onSubmit={(e: React.FormEvent<HTMLFormElement>): void => {
           e.preventDefault();
           handleSubmit();
         }}
@@ -87,16 +76,16 @@ export function LoginComponent() {
           >
             Email address
           </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={HandleInputForm}
-              required
-              autoComplete="email"
-              className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
-            />
+          <input
+            id="email"
+            name="email"
+            type="email"
+            value={formData.email}
+            onChange={HandleInputForm}
+            required
+            autoComplete="email"
+            className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+          />
         </div>
 
         <div className="flex items-center justify-between mt-2">
@@ -107,16 +96,16 @@ export function LoginComponent() {
             Password
           </label>
         </div>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            value={formData.password}
-            onChange={HandleInputForm}
-            required
-            autoComplete="current-password"
-            className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
-          />
+        <input
+          id="password"
+          name="password"
+          type="password"
+          value={formData.password}
+          onChange={HandleInputForm}
+          required
+          autoComplete="current-password"
+          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+        />
         <button
           type="submit"
           className="flex mt-5 w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"

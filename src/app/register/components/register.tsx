@@ -54,7 +54,7 @@ export function RegisterComponent() {
       body: JSON.stringify(formData),
     };
 
-    fetch("http://localhost:3800/api/register", options)
+    fetch("https://ucw4k4kk0coss4k08k0ow4ko.softver.cc/api/register", options)
       .then((res) => res.json())
       .then((data) => {
         alert(data.message);

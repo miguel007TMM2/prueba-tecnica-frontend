@@ -57,7 +57,7 @@ export default function Tiptap() {
 
     for (const note of pending) {
       try {
-        const res = await fetch("http://localhost:3800/api/nota", {
+        const res = await fetch("https://ucw4k4kk0coss4k08k0ow4ko.softver.cc/api/nota", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -99,7 +99,7 @@ export default function Tiptap() {
 
   async function fetchNotes() {
     const token = getToken();
-    const res = await fetch("http://localhost:3800/api/notas", {
+    const res = await fetch("https://ucw4k4kk0coss4k08k0ow4ko.softver.cc/api/notas", {
       headers: {
         "Content-Type": "application/json",
         Authorization: token ? `Bearer ${token}` : "",
@@ -164,7 +164,7 @@ export default function Tiptap() {
     }
     try {
       const token = getToken();
-      const res = await fetch("http://localhost:3800/api/nota", {
+      const res = await fetch("https://ucw4k4kk0coss4k08k0ow4ko.softver.cc/api/nota", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -195,7 +195,7 @@ export default function Tiptap() {
 
   async function handleDeleteNote(id: number) {
     const token = getToken();
-    const res = await fetch(`http://localhost:3800/api/nota/${id}`, {
+    const res = await fetch(`https://ucw4k4kk0coss4k08k0ow4ko.softver.cc/api/nota/${id}`, {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
