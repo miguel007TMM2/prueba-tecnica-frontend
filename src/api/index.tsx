@@ -13,7 +13,8 @@ export async function apiRequest<T>({
   body,
   headers = {},
 }: ApiRequestOptions): Promise<T> {
-  const baseUrl = "https://ucw4k4kk0coss4k08k0ow4ko.softver.cc/api";
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+  console.log(baseUrl)
   const url = `${baseUrl}${endpoint}`;
   const fetchOptions: RequestInit = {
     method,
