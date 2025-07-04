@@ -1,5 +1,5 @@
 "use client";
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor, EditorContent, Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import {
@@ -9,6 +9,7 @@ import {
   FaListOl,
   FaListUl,
   FaHeading,
+  FaTimes,
 } from "react-icons/fa";
 import { JSX, useEffect, useState } from "react";
 import { getToken, savePendingNote, sendPendingNotes } from "@/utils";
@@ -30,6 +31,40 @@ interface TiptapProps {
   notes: Note[];
   selectedNoteId: number | null;
 }
+
+const toolbarButtons = [
+  {
+    icon: <FaBold />,
+    action: (editor: Editor) => editor.chain().focus().toggleBold().run(),
+    isActive: (editor: Editor) => editor.isActive("bold"),
+    key: "bold",
+  },
+  {
+    icon: <FaItalic />,
+    action: (editor: Editor) => editor.chain().focus().toggleItalic().run(),
+    isActive: (editor: Editor) => editor.isActive("italic"),
+    key: "italic",
+  },
+  {
+    icon: <FaUnderline />,
+    action: (editor: Editor) => editor.chain().focus().toggleUnderline().run(),
+    isActive: (editor: Editor) => editor.isActive("underline"),
+    key: "underline",
+  },
+  {
+    icon: <FaListUl />,
+    action: (editor: Editor) => editor.chain().focus().toggleBulletList().run(),
+    isActive: (editor: Editor) => editor.isActive("bulletList"),
+    key: "bulletList",
+  },
+  {
+    icon: <FaListOl />,
+    action: (editor: Editor) =>
+      editor.chain().focus().toggleOrderedList().run(),
+    isActive: (editor: Editor) => editor.isActive("orderedList"),
+    key: "orderedList",
+  },
+];
 
 export default function Tiptap(): JSX.Element | null {
   const [tiptap, setTiptap] = useState<TiptapProps>({
@@ -200,7 +235,7 @@ export default function Tiptap(): JSX.Element | null {
         <h2 className="font-bold mb-2">Mis notas</h2>
         <button
           onClick={handleNewNote}
-          className="mb-2 p-2 bg-green-500 text-white rounded"
+          className="mb-2 p-2 bg-green-500 text-white rounded cursor-pointer hover:bg-green-600"
         >
           Nueva nota
         </button>
@@ -218,10 +253,11 @@ export default function Tiptap(): JSX.Element | null {
                   e.stopPropagation();
                   handleDeleteNote(note.id);
                 }}
-                className="absolute top-1 right-1 text-xs bg-red-500 text-white rounded px-2 py-1"
+                className="absolute top-1 right-1 text-xs text-red-500 hover:bg-red-100 rounded-full p-1 cursor-pointer"
                 title="Eliminar nota"
+                type="button"
               >
-                Delete
+                <FaTimes size={16} />
               </button>
               <h3 className="font-semibold truncate">{note.title}</h3>
               <div
@@ -273,46 +309,20 @@ export default function Tiptap(): JSX.Element | null {
                 ))}
               </select>
             </div>
+            {toolbarButtons.map((btn) => (
+              <button
+                key={btn.key}
+                onClick={() => btn.action(editor)}
+                className={`p-2 ${btn.isActive(editor) ? "bg-gray-200" : ""}`}
+                type="button"
+              >
+                {btn.icon}
+              </button>
+            ))}
           </div>
           <button
-            onClick={() => editor.chain().focus().toggleBold().run()}
-            className={`p-2 ${editor.isActive("bold") ? "bg-gray-200" : ""}`}
-          >
-            <FaBold />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().toggleItalic().run()}
-            className={`p-2 ${editor.isActive("italic") ? "bg-gray-200" : ""}`}
-          >
-            <FaItalic />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().toggleUnderline().run()}
-            className={`p-2 ${
-              editor.isActive("underline") ? "bg-gray-200" : ""
-            }`}
-          >
-            <FaUnderline />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().toggleBulletList().run()}
-            className={`p-2 ${
-              editor.isActive("bulletList") ? "bg-gray-200" : ""
-            }`}
-          >
-            <FaListUl />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            className={`p-2 ${
-              editor.isActive("orderedList") ? "bg-gray-200" : ""
-            }`}
-          >
-            <FaListOl />
-          </button>
-          <button
             onClick={handleSave}
-            className="p-2 bg-blue-500 text-white rounded ml-4"
+            className="p-2 bg-blue-500 text-white rounded ml-4 cursor-pointer"
             disabled={tiptap.loading || !tiptap.title}
           >
             {tiptap.loading ? "Guardando..." : "Saved"}
