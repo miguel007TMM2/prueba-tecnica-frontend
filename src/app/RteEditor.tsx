@@ -10,7 +10,7 @@ import {
   FaListUl,
   FaHeading,
 } from "react-icons/fa";
-import { useEffect, useState } from "react";
+import { JSX, useEffect, useState } from "react";
 import { getCookie } from "cookies-next";
 
 interface Note {
@@ -19,16 +19,30 @@ interface Note {
   content: string;
 }
 
-export default function Tiptap() {
-  const [headingLevel, setHeadingLevel] = useState<string>("1");
-  const [editorContent, setEditorContent] = useState<string>("");
-  const [title, setTitle] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(false);
-  const [message, setMessage] = useState<string>("");
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
+type Level = 1 | 2 | 3 | 4 | 5 | 6 ;
+interface TiptapProps {
+  headingLevel: Level;
+  editorContent: string;
+  title: string;
+  loading: boolean;
+  message: string;
+  notes: Note[];
+  selectedNoteId: number | null;
+}
 
-  const editor = useEditor({
+
+export default function Tiptap(): JSX.Element | null {
+  const [tiptap, setTiptap] = useState<TiptapProps>({
+    headingLevel: 1,
+    editorContent: "",
+    title: "",
+    loading: false,
+    message: "",
+    notes: [],
+    selectedNoteId: null,
+  });
+
+  const editor: ReturnType<typeof useEditor> = useEditor({
     extensions: [
       StarterKit,
       Underline.configure({ HTMLAttributes: { class: "underline" } }),
@@ -41,7 +55,7 @@ export default function Tiptap() {
       },
     },
     onUpdate({ editor }) {
-      setEditorContent(editor.getHTML());
+      setTiptap((prev) => ({ ...prev, editorContent: editor.getHTML() }));
     },
     immediatelyRender: false,
   });
@@ -57,14 +71,17 @@ export default function Tiptap() {
 
     for (const note of pending) {
       try {
-        const res = await fetch("https://ucw4k4kk0coss4k08k0ow4ko.softver.cc/api/nota", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: token ? `Bearer ${token}` : "",
-          },
-          body: JSON.stringify(note),
-        });
+        const res = await fetch(
+          "https://ucw4k4kk0coss4k08k0ow4ko.softver.cc/api/nota",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: token ? `Bearer ${token}` : "",
+            },
+            body: JSON.stringify(note),
+          }
+        );
         if (res.ok) sent++;
       } catch {
         break;
@@ -99,15 +116,18 @@ export default function Tiptap() {
 
   async function fetchNotes() {
     const token = getToken();
-    const res = await fetch("https://ucw4k4kk0coss4k08k0ow4ko.softver.cc/api/notas", {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: token ? `Bearer ${token}` : "",
-      },
-    });
+    const res = await fetch(
+      "https://ucw4k4kk0coss4k08k0ow4ko.softver.cc/api/notas",
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : "",
+        },
+      }
+    );
     if (res.ok) {
       const data = await res.json();
-      setNotes(data);
+      setTiptap((prev) => ({ ...prev, notes: data }));
     }
   }
 
@@ -132,82 +152,116 @@ export default function Tiptap() {
   }, []);
 
   function handleSelectNote(note: Note) {
-    setSelectedNoteId(note.id);
-    setTitle(note.title);
+    setTiptap((prev) => ({
+      ...prev,
+      title: note.title,
+      editorContent: note.content,
+    }));
+
     editor?.commands.setContent(note.content);
   }
 
   function handleNewNote() {
-    setSelectedNoteId(null);
-    setTitle("");
+    setTiptap((prev) => ({
+      ...prev,
+      selectedNoteId: null,
+      title: "",
+      editorContent: "",
+    }));
     editor?.commands.setContent("");
   }
 
   async function handleSave() {
-    setLoading(true);
-    setMessage("");
+
+    setTiptap((prev) => ({ ...prev, loading: true, message: "" }));
+
+    const { title, editorContent } = tiptap;
     const noteData = { title, content: editorContent };
+
     if (!navigator.onLine) {
       savePendingNote(noteData);
-      setNotes((prev) => [
+      setTiptap((prev) => ({
         ...prev,
-        { id: Date.now(), title, content: editorContent },
-      ]);
-      setMessage(
-        "Sin conexión. Nota guardada localmente y se enviará cuando haya internet."
-      );
-      setTitle("");
-      editor?.commands.setContent("");
-      setSelectedNoteId(null);
-      setLoading(false);
+        loading: false,
+        selectedNoteId: null,
+        title: "",
+        message:
+          "Sin conexión. Nota guardada localmente y se enviará cuando haya internet.",
+        notes: [
+          ...prev.notes,
+          { id: Date.now(), title, content: editorContent },
+        ],
+        editorContent: "",
+      }));
       return;
     }
+
     try {
       const token = getToken();
-      const res = await fetch("https://ucw4k4kk0coss4k08k0ow4ko.softver.cc/api/nota", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : "",
-        },
-        body: JSON.stringify(noteData),
-      });
+      const res = await fetch(
+        "https://ucw4k4kk0coss4k08k0ow4ko.softver.cc/api/nota",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+          body: JSON.stringify(noteData),
+        }
+      );
       if (!res.ok) throw new Error("Error al guardar la nota");
-      setMessage("Nota guardada correctamente");
 
-      setTitle("");
       editor?.commands.setContent("");
-      setSelectedNoteId(null);
+      setTiptap((prev) => ({
+        ...prev,
+        message: "Nota guardada correctamente",
+        selectedNoteId: null,
+        title: "",
+      }));
 
       await fetchNotes();
-    } catch (err) {
+    } catch (err: unknown) {
       savePendingNote(noteData);
-      setMessage(
-        "Sin conexión. Nota guardada localmente y se enviará cuando haya internet."
-      );
-      setTitle("");
       editor?.commands.setContent("");
-      setSelectedNoteId(null);
+      setTiptap((prev) => ({
+        ...prev,
+       message: "Sin conexión. Nota guardada localmente y se enviará cuando haya internet.",
+       title: "",
+       selectedNoteId: null,
+      }));
+      console.error("Error al guardar la nota:", err);
     } finally {
-      setLoading(false);
+      setTiptap((prev) => ({ ...prev, loading: false }));
     }
   }
 
   async function handleDeleteNote(id: number) {
     const token = getToken();
-    const res = await fetch(`https://ucw4k4kk0coss4k08k0ow4ko.softver.cc/api/nota/${id}`, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: token ? `Bearer ${token}` : "",
-      },
-    });
+    const res = await fetch(
+      `https://ucw4k4kk0coss4k08k0ow4ko.softver.cc/api/nota/${id}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : "",
+        },
+      }
+    );
     if (res.ok) {
-      setNotes((prev) => prev.filter((note) => note.id !== id));
-      setMessage("Nota eliminada correctamente");
-      setSelectedNoteId(null);
+
+      setTiptap((prev) => ({
+        ...prev,
+        message: "Nota eliminada correctamente",
+        selectedNoteId: null,
+        title: "",
+        notes: prev.notes.filter((note) => note.id !== id),
+      }));
+     
     } else {
-      setMessage("No se pudo eliminar la nota");
+      setTiptap((prev) => ({
+        ...prev,
+        message: "No se pudo eliminar la nota",
+      }));
     }
   }
 
@@ -226,11 +280,11 @@ export default function Tiptap() {
           Nueva nota
         </button>
         <div className="flex flex-wrap gap-2">
-          {notes.map((note) => (
+          {tiptap.notes.map((note) => (
             <div
               key={note.id}
               className={`border rounded p-2 cursor-pointer w-60 relative ${
-                selectedNoteId === note.id ? "bg-blue-100" : "bg-white"
+                tiptap.selectedNoteId === note.id ? "bg-blue-100" : "bg-white"
               }`}
               onClick={() => handleSelectNote(note)}
             >
@@ -260,8 +314,8 @@ export default function Tiptap() {
           <input
             type="text"
             placeholder="Título de la nota"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            value={tiptap.title}
+            onChange={(e) => setTiptap((prev) => ({ ...prev, title: e.target.value }))}
             className="border rounded p-2 mb-2 w-full"
           />
           <div className="flex space-x-2 mb-2">
@@ -270,14 +324,17 @@ export default function Tiptap() {
                 <FaHeading />
               </button>
               <select
-                value={headingLevel}
+                value={tiptap.headingLevel}
                 onChange={(e) => {
-                  const headingLevel = e.target.value;
-                  setHeadingLevel(headingLevel);
+                  const headingLevel: Level =  Number(e.target.value) as Level;
+                  setTiptap((prev) => ({
+                    ...prev,
+                    headingLevel,
+                  }));
                   editor
                     .chain()
                     .focus()
-                    .toggleHeading({ level: Number(headingLevel) })
+                    .toggleHeading({ level: headingLevel})
                     .run();
                 }}
                 className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
@@ -329,11 +386,11 @@ export default function Tiptap() {
           <button
             onClick={handleSave}
             className="p-2 bg-blue-500 text-white rounded ml-4"
-            disabled={loading || !title}
+            disabled={tiptap.loading || !tiptap.title}
           >
-            {loading ? "Guardando..." : "Saved"}
+            {tiptap.loading ? "Guardando..." : "Saved"}
           </button>
-          {message && <span className="ml-4 text-sm">{message}</span>}
+          {tiptap.message && <span className="ml-4 text-sm">{tiptap.message}</span>}
         </div>
       </div>
       <div className="border rounded-lg p-2">
@@ -344,7 +401,7 @@ export default function Tiptap() {
         <div className="mt-4">
           <p className="font-bold">Contenido actual (HTML):</p>
           <pre className="bg-gray-100 p-2 rounded text-xs overflow-x-auto">
-            {editorContent}
+            {tiptap.editorContent}
           </pre>
         </div>
       </div>
