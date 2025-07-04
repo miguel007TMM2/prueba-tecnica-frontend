@@ -1,6 +1,6 @@
 'use client';
 import { JSX } from "react";
-import Tiptap from "./RteEditor";
+import Tiptap from "../components/ui-pages/text-editor";
 import { deleteCookie } from 'cookies-next'
 
 export default function Home(): JSX.Element {

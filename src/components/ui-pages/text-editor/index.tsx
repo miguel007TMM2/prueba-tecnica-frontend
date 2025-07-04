@@ -3,12 +3,13 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import { JSX, useEffect, useState } from "react";
-import { deletePendingNote, getToken, savePendingNoteWithId, sendPendingNotes } from "@/utils";
+import { getToken } from "@/utils";
 import { apiRequest } from "@/api";
-import { NoteViewer } from "@/components/note-viewer";
+import { NoteViewer } from "@/components/ui-component/text-editor/note-viewer";
 import { Note, TiptapProps } from "@/types";
-import { NoteEditor } from "@/components/note-editor";
-import { NotesList } from "@/components/note-list";
+import { NoteEditor } from "@/components/ui-component/text-editor/note-editor";
+import { NotesList } from "@/components/ui-component/text-editor/note-list";
+import { sendPendingNotes, deletePendingNote, savePendingNoteWithId } from "@/utils/text-editor";
 
 export default function Tiptap(): JSX.Element | null {
   const [tiptap, setTiptap] = useState<TiptapProps>({

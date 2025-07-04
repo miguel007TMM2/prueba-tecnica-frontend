@@ -1,6 +1,6 @@
 import { TiptapProps } from "@/types";
 import { Editor } from "@tiptap/react";
-import { EditorToolbar } from "./editor-toolbar";
+import { EditorToolbar } from "../toolbar";
 
 export function NoteEditor({
   tiptap,
