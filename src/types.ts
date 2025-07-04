@@ -16,3 +16,23 @@ export interface Options {
   };
   body: string;
 }
+
+export interface Note {
+  id: number;
+  title: string;
+  content: string;
+}
+
+export type Level = 1 | 2 | 3 | 4 | 5 | 6;
+
+export interface TiptapProps {
+  headingLevel: Level;
+  editorContent: string;
+  title: string;
+  loading: boolean;
+  message: string;
+  notes: Note[];
+  selectedNoteId: number | null;
+  showViewer: boolean;
+  viewerNote: Note | null;
+}

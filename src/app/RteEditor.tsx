@@ -1,70 +1,14 @@
 "use client";
-import { useEditor, EditorContent, Editor } from "@tiptap/react";
+import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
-import {
-  FaBold,
-  FaItalic,
-  FaUnderline,
-  FaListOl,
-  FaListUl,
-  FaHeading,
-  FaTimes,
-} from "react-icons/fa";
 import { JSX, useEffect, useState } from "react";
 import { getToken, savePendingNote, sendPendingNotes } from "@/utils";
 import { apiRequest } from "@/api";
-
-interface Note {
-  id: number;
-  title: string;
-  content: string;
-}
-
-type Level = 1 | 2 | 3 | 4 | 5 | 6;
-interface TiptapProps {
-  headingLevel: Level;
-  editorContent: string;
-  title: string;
-  loading: boolean;
-  message: string;
-  notes: Note[];
-  selectedNoteId: number | null;
-}
-
-const toolbarButtons = [
-  {
-    icon: <FaBold />,
-    action: (editor: Editor) => editor.chain().focus().toggleBold().run(),
-    isActive: (editor: Editor) => editor.isActive("bold"),
-    key: "bold",
-  },
-  {
-    icon: <FaItalic />,
-    action: (editor: Editor) => editor.chain().focus().toggleItalic().run(),
-    isActive: (editor: Editor) => editor.isActive("italic"),
-    key: "italic",
-  },
-  {
-    icon: <FaUnderline />,
-    action: (editor: Editor) => editor.chain().focus().toggleUnderline().run(),
-    isActive: (editor: Editor) => editor.isActive("underline"),
-    key: "underline",
-  },
-  {
-    icon: <FaListUl />,
-    action: (editor: Editor) => editor.chain().focus().toggleBulletList().run(),
-    isActive: (editor: Editor) => editor.isActive("bulletList"),
-    key: "bulletList",
-  },
-  {
-    icon: <FaListOl />,
-    action: (editor: Editor) =>
-      editor.chain().focus().toggleOrderedList().run(),
-    isActive: (editor: Editor) => editor.isActive("orderedList"),
-    key: "orderedList",
-  },
-];
+import { NoteViewer } from "@/components/note-viewer";
+import { Note, TiptapProps } from "@/types";
+import { NoteEditor } from "@/components/note-editor";
+import { NotesList } from "@/components/note-list";
 
 export default function Tiptap(): JSX.Element | null {
   const [tiptap, setTiptap] = useState<TiptapProps>({
@@ -75,6 +19,8 @@ export default function Tiptap(): JSX.Element | null {
     message: "",
     notes: [],
     selectedNoteId: null,
+    showViewer: false,
+    viewerNote: null,
   });
 
   const editor: ReturnType<typeof useEditor> = useEditor({
@@ -131,11 +77,17 @@ export default function Tiptap(): JSX.Element | null {
   function handleSelectNote(note: Note): void {
     setTiptap((prev) => ({
       ...prev,
-      title: note.title,
-      editorContent: note.content,
+      viewerNote: note,
+      showViewer: true,
     }));
+  }
 
-    editor?.commands.setContent(note.content);
+  function handleCloseViewer() {
+    setTiptap((prev) => ({
+      ...prev,
+      showViewer: false,
+      viewerNote: null,
+    }));
   }
 
   function handleNewNote() {
@@ -231,119 +183,50 @@ export default function Tiptap(): JSX.Element | null {
 
   return (
     <>
+      {tiptap.showViewer && tiptap.viewerNote && (
+        <NoteViewer note={tiptap.viewerNote} onClose={handleCloseViewer} />
+      )}
       <div className="mb-4">
         <h2 className="font-bold mb-2">Mis notas</h2>
         <button
           onClick={handleNewNote}
-          className="mb-2 p-2 bg-green-500 text-white rounded cursor-pointer hover:bg-green-600"
+          className="mb-2 p-2 bg-yellow-500 text-white rounded cursor-pointer hover:bg-yellow-600"
         >
-          Nueva nota
+          Empty Note editor
         </button>
-        <div className="flex flex-wrap gap-2">
-          {tiptap.notes.map((note) => (
-            <div
-              key={note.id}
-              className={`border rounded p-2 cursor-pointer w-60 relative ${
-                tiptap.selectedNoteId === note.id ? "bg-blue-100" : "bg-white"
-              }`}
-              onClick={() => handleSelectNote(note)}
-            >
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteNote(note.id);
-                }}
-                className="absolute top-1 right-1 text-xs text-red-500 hover:bg-red-100 rounded-full p-1 cursor-pointer"
-                title="Eliminar nota"
-                type="button"
-              >
-                <FaTimes size={16} />
-              </button>
-              <h3 className="font-semibold truncate">{note.title}</h3>
-              <div
-                className="text-xs text-gray-500 truncate"
-                dangerouslySetInnerHTML={{ __html: note.content }}
-              />
-            </div>
-          ))}
-        </div>
+        <NotesList
+          notes={tiptap.notes}
+          selectedNoteId={tiptap.selectedNoteId}
+          onSelect={handleSelectNote}
+          onDelete={handleDeleteNote}
+        />
       </div>
 
-      <div className="flex flex-col">
-        <div className="w-full p-2">
-          <p>Editor</p>
-          <input
-            type="text"
-            placeholder="Título de la nota"
-            value={tiptap.title}
-            onChange={(e) =>
-              setTiptap((prev) => ({ ...prev, title: e.target.value }))
-            }
-            className="border rounded p-2 mb-2 w-full"
+      {!tiptap.showViewer && (
+        <>
+          <NoteEditor
+            tiptap={tiptap}
+            setTiptap={setTiptap}
+            editor={editor}
+            onSave={handleSave}
           />
-          <div className="flex space-x-2 mb-2">
-            <div className="relative">
-              <button className="p-2">
-                <FaHeading />
-              </button>
-              <select
-                value={tiptap.headingLevel}
-                onChange={(e) => {
-                  const headingLevel: Level = Number(e.target.value) as Level;
-                  setTiptap((prev) => ({
-                    ...prev,
-                    headingLevel,
-                  }));
-                  editor
-                    .chain()
-                    .focus()
-                    .toggleHeading({ level: headingLevel })
-                    .run();
-                }}
-                className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
-              >
-                {[1, 2, 3, 4, 5].map((level) => (
-                  <option key={level} value={level}>
-                    Heading {level}
-                  </option>
-                ))}
-              </select>
+          <div className="border rounded-lg p-2">
+            <p>Content</p>
+            <span className="text-sm text-gray-500 mb-2">
+              <EditorContent
+                editor={editor}
+                className="border rounded-lg p-2"
+              />
+            </span>
+            <div className="mt-4">
+              <p className="font-bold">Contenido actual (HTML):</p>
+              <pre className="bg-gray-100 p-2 rounded text-xs overflow-x-auto">
+                {tiptap.editorContent}
+              </pre>
             </div>
-            {toolbarButtons.map((btn) => (
-              <button
-                key={btn.key}
-                onClick={() => btn.action(editor)}
-                className={`p-2 ${btn.isActive(editor) ? "bg-gray-200" : ""}`}
-                type="button"
-              >
-                {btn.icon}
-              </button>
-            ))}
           </div>
-          <button
-            onClick={handleSave}
-            className="p-2 bg-blue-500 text-white rounded ml-4 cursor-pointer"
-            disabled={tiptap.loading || !tiptap.title}
-          >
-            {tiptap.loading ? "Guardando..." : "Saved"}
-          </button>
-          {tiptap.message && (
-            <span className="ml-4 text-sm">{tiptap.message}</span>
-          )}
-        </div>
-      </div>
-      <div className="border rounded-lg p-2">
-        <p>Content</p>
-        <span className="text-sm text-gray-500 mb-2">
-          <EditorContent editor={editor} className="border rounded-lg p-2" />
-        </span>
-        <div className="mt-4">
-          <p className="font-bold">Contenido actual (HTML):</p>
-          <pre className="bg-gray-100 p-2 rounded text-xs overflow-x-auto">
-            {tiptap.editorContent}
-          </pre>
-        </div>
-      </div>
+        </>
+      )}
     </>
   );
 }
