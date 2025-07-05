@@ -12,9 +12,9 @@ export function middleware(request: NextRequest) {
   if (tokenCookie) {
     const parsedCookie = JSON.parse(tokenCookie.value);
     const isExpired = new Date(parsedCookie.expiresAt) < new Date();
+    
     if (isExpired && request.cookies.has("token")) {
       response.cookies.delete("token");
-      return NextResponse.redirect(new URL("/login", request.url));
     }
     return response;
   }
