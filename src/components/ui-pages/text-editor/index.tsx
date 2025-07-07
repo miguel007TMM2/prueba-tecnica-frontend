@@ -9,7 +9,13 @@ import { NoteViewer } from "@/components/ui-component/text-editor/note-viewer";
 import { Note, TiptapProps } from "@/types";
 import { NoteEditor } from "@/components/ui-component/text-editor/note-editor";
 import { NotesList } from "@/components/ui-component/text-editor/note-list";
-import { sendPendingNotes, deletePendingNote, savePendingNoteWithId } from "@/utils/text-editor";
+import {
+  sendPendingNotes,
+  deletePendingNote,
+  savePendingNoteWithId,
+  savePendingEdit,
+  sendPendingEdits,
+} from "@/utils/text-editor";
 
 export default function Tiptap(): JSX.Element | null {
   const [tiptap, setTiptap] = useState<TiptapProps>({
@@ -22,6 +28,7 @@ export default function Tiptap(): JSX.Element | null {
     selectedNoteId: null,
     showViewer: false,
     viewerNote: null,
+    editingNote: false,
   });
 
   const editor: ReturnType<typeof useEditor> = useEditor({
@@ -46,7 +53,7 @@ export default function Tiptap(): JSX.Element | null {
     const token: string | null = getToken();
     try {
       const data = await apiRequest<Note[]>({
-        endpoint: "/notas",
+        endpoint: "/notes",
         token,
       });
       setTiptap((prev) => ({ ...prev, notes: data }));
@@ -60,21 +67,29 @@ export default function Tiptap(): JSX.Element | null {
 
     const syncOnReconnect = async () => {
       const token = getToken();
-      const toDelete = JSON.parse(localStorage.getItem("pendingDeleteNotes") || "[]");
+
+      // Sincronizar eliminaciones pendientes
+      const toDelete = JSON.parse(
+        localStorage.getItem("pendingDeleteNotes") || "[]"
+      );
       for (const id of toDelete) {
         try {
           await apiRequest({
             method: "DELETE",
-            endpoint: `/nota/${id}`,
+            endpoint: `/notes/${id}`,
             token,
           });
         } catch {}
       }
       if (toDelete.length > 0) {
         localStorage.removeItem("pendingDeleteNotes");
-        await fetchNotes();
       }
-      sendPendingNotes(token, fetchNotes);
+
+      // Sincronizar ediciones pendientes
+      await sendPendingEdits(token, fetchNotes);
+
+      // Sincronizar notas nuevas pendientes
+      await sendPendingNotes(token, fetchNotes);
     };
     window.addEventListener("online", syncOnReconnect);
 
@@ -110,15 +125,57 @@ export default function Tiptap(): JSX.Element | null {
       selectedNoteId: null,
       title: "",
       editorContent: "",
+      showViewer: false,
+      viewerNote: null,
     }));
     editor?.commands.setContent("");
   }
 
+  function handleEditNote(id: number): void {
+    const note = tiptap.notes.find((note) => note.id === id);
+    if (note) {
+      setTiptap((prev) => ({
+        ...prev,
+        selectedNoteId: id,
+        title: note.title,
+        editorContent: note.content,
+        showViewer: false,
+        viewerNote: null,
+        editingNote: true,
+      }));
+      editor?.commands.setContent(note.content);
+    }
+  }
+
   async function handleSave(): Promise<void> {
     setTiptap((prev) => ({ ...prev, loading: true, message: "" }));
-    const { title, editorContent } = tiptap;
+    const { title, editorContent, selectedNoteId, editingNote } = tiptap;
     const noteData = { title, content: editorContent };
 
+   
+    if (editingNote && !navigator.onLine) {
+      savePendingEdit(selectedNoteId!, noteData);
+
+      setTiptap((prev) => ({
+        ...prev,
+        loading: false,
+        selectedNoteId: null,
+        title: "",
+        editingNote: false,
+        message:
+          "Sin conexión. Edición guardada localmente y se enviará cuando haya internet.",
+        notes: prev.notes.map((note) =>
+          note.id === selectedNoteId
+            ? { ...note, title, content: editorContent }
+            : note
+        ),
+        editorContent: "",
+      }));
+      editor?.commands.setContent("");
+      return;
+    }
+
+  
     if (!navigator.onLine) {
       const noteWithId = savePendingNoteWithId(noteData);
       setTiptap((prev) => ({
@@ -131,14 +188,61 @@ export default function Tiptap(): JSX.Element | null {
         notes: [...prev.notes, noteWithId],
         editorContent: "",
       }));
+      editor?.commands.setContent("");
       return;
     }
 
+
+    if (editingNote) {
+      const token = getToken();
+      try {
+        await apiRequest({
+          method: "PUT",
+          endpoint: `/notes/${selectedNoteId}`,
+          token,
+          body: noteData,
+        });
+        editor?.commands.setContent("");
+        setTiptap((prev) => ({
+          ...prev,
+          message: "Nota actualizada correctamente",
+          selectedNoteId: null,
+          title: "",
+          editingNote: false,
+          editorContent: "",
+        }));
+        await fetchNotes();
+      } catch (err) {
+     
+        savePendingEdit(selectedNoteId!, noteData);
+        setTiptap((prev) => ({
+          ...prev,
+          message:
+            "Sin conexión. Edición guardada localmente y se enviará cuando haya internet.",
+          selectedNoteId: null,
+          title: "",
+          editingNote: false,
+          notes: prev.notes.map((note) =>
+            note.id === selectedNoteId
+              ? { ...note, title, content: editorContent }
+              : note
+          ),
+          editorContent: "",
+        }));
+        editor?.commands.setContent("");
+        console.error("Error al actualizar la nota:", err);
+      } finally {
+        setTiptap((prev) => ({ ...prev, loading: false }));
+      }
+      return;
+    }
+
+   
     try {
       const token = getToken();
       await apiRequest({
         method: "POST",
-        endpoint: "/nota",
+        endpoint: "/notes",
         token,
         body: noteData,
       });
@@ -148,6 +252,7 @@ export default function Tiptap(): JSX.Element | null {
         message: "Nota guardada correctamente",
         selectedNoteId: null,
         title: "",
+        editorContent: "",
       }));
       await fetchNotes();
     } catch (err) {
@@ -160,6 +265,7 @@ export default function Tiptap(): JSX.Element | null {
         title: "",
         selectedNoteId: null,
         notes: [...prev.notes, noteWithId],
+        editorContent: "",
       }));
       console.error("Error al guardar la nota:", err);
     } finally {
@@ -188,7 +294,7 @@ export default function Tiptap(): JSX.Element | null {
       try {
         await apiRequest({
           method: "DELETE",
-          endpoint: `/nota/${id}`,
+          endpoint: `/notes/${id}`,
           token,
         });
         setTiptap((prev) => ({
@@ -206,7 +312,9 @@ export default function Tiptap(): JSX.Element | null {
       return;
     }
 
-    const toDelete = JSON.parse(localStorage.getItem("pendingDeleteNotes") || "[]");
+    const toDelete = JSON.parse(
+      localStorage.getItem("pendingDeleteNotes") || "[]"
+    );
     toDelete.push(id);
     localStorage.setItem("pendingDeleteNotes", JSON.stringify(toDelete));
     setTiptap((prev) => ({
@@ -239,6 +347,7 @@ export default function Tiptap(): JSX.Element | null {
           selectedNoteId={tiptap.selectedNoteId}
           onSelect={handleSelectNote}
           onDelete={handleDeleteNote}
+          onEdit={handleEditNote}
         />
       </div>
 

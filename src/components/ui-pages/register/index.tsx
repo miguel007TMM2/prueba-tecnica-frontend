@@ -38,7 +38,7 @@ export function RegisterComponent(): JSX.Element {
     try {
       const data: { message: string } = await apiRequest({
         method: "POST",
-        endpoint: "/register",
+        endpoint: "/auth/register",
         body: formData,
       });
       alert(data.message);

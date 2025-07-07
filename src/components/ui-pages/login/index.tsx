@@ -38,9 +38,10 @@ export function LoginComponent(): JSX.Element {
         message?: string;
       } = await apiRequest({
         method: "POST",
-        endpoint: "/login",
+        endpoint: "/auth/login",
         body: formData,
       });
+      console.log(data);
       if (data.token) {
         setCookie("token", data);
         router.push("/");

@@ -35,4 +35,5 @@ export interface TiptapProps {
   selectedNoteId: number | null;
   showViewer: boolean;
   viewerNote: Note | null;
+  editingNote: boolean;
 }
